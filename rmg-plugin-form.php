@@ -1,12 +1,27 @@
 <?php
 /**
  * Plugin Name: RMG Plugin Form
- * Author: Richard Marcelo
  * Description: Formulario personalizado usando el shortcode [rmg_plugin_form]
+ * version: 0.1.1
+ * Author: Richard Marcelo
+ * Author URI: https://www.rmarcelo.com/
+ * PHP Version: 5.6
+ * 
+ * @category Form
+ * @package RMG
+ * @author Richard Marcelo <https://www.rmarcelo.com>
+ * @license GPLv2 http://www.gnu.org/licenses/gpl--2.0.txt
+ * @link https://www.rmarcelo.com
  */
 
+//Cuando el plugin se activa se crea la tabla del mismo si no existe 
 register_activation_hook( __FILE__, 'Rmg_Aspirante_init' );
 
+/**
+ * Realiza las acciones necesarias para configurar el plugin cuando se activa
+ * 
+ * @return void
+ */
 function Rmg_Aspirante_init() {
 
     global $wpdb;
@@ -33,21 +48,21 @@ function Rmg_Aspirante_init() {
  add_shortcode( 'rmg_plugin_form', 'RMG_Plugin_form' );
 
  /**
-  * Crea el shortcode
+  * Crea y procesa el formulario que rellenan los aspirantes
   *
-  * @return void
+  * @return string
   */
  function RMG_Plugin_form() {
 
     global $wpdb;
 
     if ( !empty($_POST)
-            AND $_POST['nombre'] != '' 
-            AND is_email($_POST['correo'])
-            AND $_POST['nivel_html'] != ''
-            AND $_POST['nivel_css'] != ''
-            AND $_POST['nivel_js'] != ''
-            AND $_POST['aceptacion'] == '1'
+            && $_POST['nombre'] != '' 
+            && is_email($_POST['correo'])
+            && $_POST['nivel_html'] != ''
+            && $_POST['nivel_css'] != ''
+            && $_POST['nivel_js'] != ''
+            && $_POST['aceptacion'] == '1'
     ) {
         $tabla_aspirante = $wpdb->prefix . 'aspirante';
         $nombre = sanitize_text_field($_POST['nombre']);
@@ -57,6 +72,7 @@ function Rmg_Aspirante_init() {
         $nivel_js = (int)$_POST['nivel_js'];
         $aceptacion = (int)$_POST['aceptacion'];
         $created_at = date('Y-m-d H:i:s');
+
         $wpdb->insert(
             $tabla_aspirante, 
             array(
@@ -69,13 +85,16 @@ function Rmg_Aspirante_init() {
                 'created_at' => $created_at,
             )
         );
+        echo "<p class='exito'><b>Tus datos han sido registrados</b>. Gracias por tu interes. </p>";
     }
-
+    // Carga hoja de estilo para el formulario
+    wp_enqueue_style('css_aspirante', plugins_url('style.css', __FILE__));
     ob_start();
     ?>
  
-        <form action="<?php get_the_permalink(); ?>" method="post" class="cuestionario">
+        <form action="<?php get_the_permalink(); ?>" method="post" id="form_aspirane" class="cuestionario">
         
+            <?php wp_nonce_field('graba_aspirante', 'aspirante_nonce'); ?>
             <div class="form-input">
                 <label for="nombre">Nombre</label>
                 <input type="text" name="nombre" id="nombre" required>
@@ -118,3 +137,43 @@ function Rmg_Aspirante_init() {
     <?php
     return ob_get_clean();
  }
+
+ add_action("admin_menu", "RMG_Plugin_menu");
+
+ /**
+  * Agrega el menu del plugin al formulario de wordpress
+  *
+  *@return void
+*/
+function RMG_Plugin_menu() {
+    add_menu_page("Formulario Aspirante", "Aspirantes", "manage_options", "rmg_plugin_menu", "RMG_Plugin_admin", "dashicons-feedback", 75);
+}
+
+function RMG_Plugin_admin() {
+
+    global $wpdb;
+    $tabla_aspirante = $wpdb->prefix . 'aspirante';
+    $aspirantes = $wpdb->get_results("SELECT * FROM $tabla_aspirante");
+
+    echo '<div class="wrap"><h1>Lista de aspirantes</h1>';
+    echo '<table class="wp-list-table widefat fixed stripped">';
+    echo '<thead><tr><th width="30%">Nombre</th><th width="20%">Correo</th>';
+    echo '<th>HTML</th><th>CSS</th><th>JS</th><th>Total</th>';
+    echo '</tr></thead>';
+    echo '<tbody id="the-list">';
+
+    foreach ($aspirantes as $aspirante){
+        $nombre = esc_textarea( $aspirante->nombre );
+        $correo = esc_textarea( $aspirante->correo );
+        $nivel_html = (int)$aspirante->nivel_html;
+        $nivel_css = (int)$aspirante->nivel_css;
+        $nivel_js = (int)$aspirante->nivel_js;
+        $total = $nivel_html + $nivel_css + $nivel_js;
+
+        echo "<tr><td>$nombre</td><td>$correo</td>";
+        echo "<td>$nivel_html</td><td>$nivel_css</td><td>$nivel_js</td><td>$total</td></tr>";
+    }
+
+    echo '</tbody></table></div>';
+
+}
