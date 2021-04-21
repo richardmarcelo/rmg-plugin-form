@@ -35,7 +35,11 @@ function Rmg_Aspirante_init() {
         nivel_html smallint(4) NOT NULL,
         nivel_css smallint(4) NOT NULL,
         nivel_js smallint(4) NOT NULL,
+        nivel_php smallint(4) NOT NULL,
+        nivel_wp smallint(4) NOT NULL,
+        motivacion text,
         aceptacion smallint(4) NOT NULL,
+        ip varchar(300),
         created_at datetime NOT NULL,
         UNIQUE (id)
     ) $charset_collate";
@@ -62,6 +66,8 @@ function Rmg_Aspirante_init() {
             && $_POST['nivel_html'] != ''
             && $_POST['nivel_css'] != ''
             && $_POST['nivel_js'] != ''
+            && $_POST['nivel_php'] != ''
+            && $_POST['nivel_wp'] != ''
             && $_POST['aceptacion'] == '1'
     ) {
         $tabla_aspirante = $wpdb->prefix . 'aspirante';
@@ -70,7 +76,11 @@ function Rmg_Aspirante_init() {
         $nivel_html = (int)$_POST['nivel_html'];
         $nivel_css = (int)$_POST['nivel_css'];
         $nivel_js = (int)$_POST['nivel_js'];
+        $nivel_php = (int)$_POST['nivel_php'];
+        $nivel_wp = (int)$_POST['nivel_wp'];
+        $motivacion = sanitize_text_field($_POST['motivacion']);
         $aceptacion = (int)$_POST['aceptacion'];
+        $ip = RMG_Obtener_IP_usuario();
         $created_at = date('Y-m-d H:i:s');
 
         $wpdb->insert(
@@ -81,11 +91,15 @@ function Rmg_Aspirante_init() {
                 'nivel_html' => $nivel_html,
                 'nivel_css' => $nivel_css,
                 'nivel_js' => $nivel_js,
+                'nivel_php' => $nivel_php,
+                'nivel_wp' => $nivel_wp,
+                'motivacion' => $motivacion,
                 'aceptacion' => $aceptacion,
+                'ip' => $ip,
                 'created_at' => $created_at,
             )
         );
-        echo "<p class='exito'><b>Tus datos han sido registrados</b>. Gracias por tu interes. </p>";
+        echo "<p class='exito'><b>Tus datos han sido registrados</b>. Gracias por tu interes. En breve contactare contigo.</p>";
     }
     // Carga hoja de estilo para el formulario
     wp_enqueue_style('css_aspirante', plugins_url('style.css', __FILE__));
@@ -125,6 +139,24 @@ function Rmg_Aspirante_init() {
                 <input type="radio" name="nivel_js" value="4" required> Lo domino al dedillo<br>
             </div>
             <div class="form-input">
+                <label for="nivel_php">¿Cual es tu nivel de PHP?</label><br>
+                <input type="radio" name="nivel_php" value="1" required> Nada<br>
+                <input type="radio" name="nivel_php" value="2" required> Estoy aprendiendo<br>
+                <input type="radio" name="nivel_php" value="3" required> Tengo experiencia<br>
+                <input type="radio" name="nivel_php" value="4" required> Lo domino al dedillo<br>
+            </div>
+            <div class="form-input">
+                <label for="nivel_wp">¿Cual es tu nivel de WordPress?</label><br>  
+                <input type="radio" name="nivel_wp" value="1" required> Nada<br>
+                <input type="radio" name="nivel_wp" value="2" required> Estoy aprendiendo<br>
+                <input type="radio" name="nivel_wp" value="3" required> Tengo experiencia<br>
+                <input type="radio" name="nivel_wp" value="4" required> Lo domino al dedillo<br>
+            </div>
+            <div class="form-input">
+                <label for="motivacion">Motivacion</label>
+                <input type="text" name="motivacion" id="motivacion">
+            </div>
+            <div class="form-input">
                 <label for="aceptacion">La informacion se manejara de manera confidencial</label><br>
                 <input type="checkbox" id="aceptacion" name="aceptacion" value="1" required> Entiendo y acepto las condiciones<br>
             </div>
@@ -157,23 +189,50 @@ function RMG_Plugin_admin() {
 
     echo '<div class="wrap"><h1>Lista de aspirantes</h1>';
     echo '<table class="wp-list-table widefat fixed stripped">';
-    echo '<thead><tr><th width="30%">Nombre</th><th width="20%">Correo</th>';
-    echo '<th>HTML</th><th>CSS</th><th>JS</th><th>Total</th>';
+    echo '<thead><tr><th width="30%">Nombre</th><th width="20%">Correo</th><th>IP</th>';
+    echo '<th>HTML</th><th>CSS</th><th>JS</th><th>PHP</th><th>WP</th><th>Total</th>';
     echo '</tr></thead>';
     echo '<tbody id="the-list">';
 
     foreach ($aspirantes as $aspirante){
         $nombre = esc_textarea( $aspirante->nombre );
         $correo = esc_textarea( $aspirante->correo );
+        $ip = $aspirante->ip;
+        $motivacion = esc_textarea($aspirante->motivacion);
         $nivel_html = (int)$aspirante->nivel_html;
         $nivel_css = (int)$aspirante->nivel_css;
         $nivel_js = (int)$aspirante->nivel_js;
-        $total = $nivel_html + $nivel_css + $nivel_js;
-
-        echo "<tr><td>$nombre</td><td>$correo</td>";
-        echo "<td>$nivel_html</td><td>$nivel_css</td><td>$nivel_js</td><td>$total</td></tr>";
+        $nivel_php = (int)$aspirante->nivel_php;
+        $nivel_wp = (int)$aspirante->nivel_wp;
+        $total = $nivel_html + $nivel_css + $nivel_js + $nivel_php + $nivel_wp;
+        
+        echo "<tr><td><a href='#' title='$motivacion'>$nombre</a></td><td>$correo</td><td>$ip</td>";
+        echo "<td>$nivel_html</td><td>$nivel_css</td><td>$nivel_js</td><td>$nivel_php</td><td>$nivel_wp</td><td>$total</td></tr>";
     }
 
     echo '</tbody></table></div>';
 
+}
+
+/**
+ * Devuelve la IP del usuario que esta visitando la pagina
+ * Codigo fuente: https://stackoverflow.com/questions/6717926/function-to-get-user-ip-address
+ * 
+ * @return string
+ */
+function RMG_Obtener_IP_usuario(){
+
+    foreach (array('HTTP_CLIENT_IP', 'HTTP_X_FORWARDED_FOR', 'HTTP_X_FORWARDED', 'HTTP_X_CLUSTER_CLIENT_IP', 'HTTP_FORWARDED_FOR', 'HTTP_FORWARDED', 'REMOTE_ADDR') as $key)
+    {
+        if (array_key_exists($key, $_SERVER) === true)
+        {
+            foreach (array_map('trim', explode(',', $_SERVER[$key])) as $ip)
+            {
+                if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) !== false)
+                {
+                    return $ip;
+                }
+            }
+        }
+    }
 }
